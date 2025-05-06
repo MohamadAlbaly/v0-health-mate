@@ -355,7 +355,6 @@ export default function CallPage() {
       await ultravoxClient.current.connect({
         streamUrl: joinUrl,
         sessionId: callId,
-        apiKey: apiKey,
         isMock: mock,
       })
 

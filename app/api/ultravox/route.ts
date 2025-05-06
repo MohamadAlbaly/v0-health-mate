@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Invalid URL received from webhook")
     }
 
+    // Include the API key securely from server-side environment variables
     return NextResponse.json({
       callId: data.callId,
       joinUrl: data.joinUrl,

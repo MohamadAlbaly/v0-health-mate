@@ -18,7 +18,6 @@ export class UltraVoxClient {
   public async connect(options: {
     streamUrl: string
     sessionId: string
-    apiKey: string
     isMock?: boolean
   }) {
     this.sessionId = options.sessionId
@@ -47,7 +46,7 @@ export class UltraVoxClient {
 
       // Create a new session with the API key
       this.session = new UltravoxSession({
-        apiKey: options.apiKey || "",
+        apiKey: "", // We'll set this after initialization
       })
 
       // Set up event listeners
