@@ -17,6 +17,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Preload critical assets */}
+        <link rel="preload" href="/circular-avatar.png" as="image" />
+        <link rel="preload" href="/logo.png" as="image" />
+        <link rel="preload" href="/healthmate-logo.png" as="image" />
+      </head>
       <body className={`${poppins.className} ${poppins.variable}`}>
         <PermissionHandler />
         {children}

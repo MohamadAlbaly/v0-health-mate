@@ -20,6 +20,10 @@ const nextConfig = {
   experimental: {
     serverActions: true,
   },
+  // Add output configuration to ensure static assets are properly included
+  output: 'standalone',
+  // Ensure all assets in the public directory are included
+  assetPrefix: undefined,
 }
 
 export default nextConfig

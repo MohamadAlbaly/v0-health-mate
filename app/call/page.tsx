@@ -175,6 +175,7 @@ export default function CallPage() {
   const ultravoxClient = useRef(getUltraVoxClient())
   const callInitialized = useRef(false)
   const ringAudioRef = useRef<HTMLAudioElement | null>(null)
+  const disconnectAttempted = useRef(false)
 
   // State for microphone notification
   const [showMicNotification, setShowMicNotification] = useState(false)
@@ -210,6 +211,30 @@ export default function CallPage() {
     }
   }, [])
 
+  // Ensure cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Ensure we disconnect when the component unmounts
+      if (ultravoxClient.current) {
+        console.log("Disconnecting UltraVox client on unmount")
+        ultravoxClient.current.disconnect().catch((err) => {
+          console.error("Error disconnecting on unmount:", err)
+        })
+      }
+
+      // Stop all sounds
+      if (ringAudioRef.current) {
+        ringAudioRef.current.pause()
+      }
+      ringSound.stop()
+      connectedSound.stop()
+      endSound.stop()
+
+      // Release wake lock
+      releaseWakeLock()
+    }
+  }, [])
+
   // Check microphone permission first
   useEffect(() => {
     if (isChecking) return
@@ -236,6 +261,7 @@ export default function CallPage() {
   const initializeCall = async () => {
     if (callInitialized.current) return
     callInitialized.current = true
+    disconnectAttempted.current = false
 
     // If permission state is prompt, request permission first
     if (permissionState === "prompt") {
@@ -264,6 +290,8 @@ export default function CallPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        // Add cache control to prevent caching
+        cache: "no-store",
       })
 
       if (!response.ok) {
@@ -301,6 +329,9 @@ export default function CallPage() {
             break
           case "connected":
             setCallStatus("connecting") // Still connecting until joined
+            if (ringAudioRef.current) {
+              ringAudioRef.current.pause()
+            }
             ringSound.stop() // Stop ringing sound
             connectedSound.play() // Play connected sound
             setStatusMessage("Connected")
@@ -329,13 +360,26 @@ export default function CallPage() {
             setAgentActivity("speaking")
             break
           case "disconnected":
+            if (ringAudioRef.current) {
+              ringAudioRef.current.pause()
+            }
             ringSound.stop()
             endSound.play()
             setCallStatus("ended")
             setStatusMessage("Call ended")
             setAgentActivity("idle")
+
+            // If we're disconnected and we've attempted to disconnect, navigate back
+            if (disconnectAttempted.current) {
+              setTimeout(() => {
+                router.push("/")
+              }, 1500)
+            }
             break
           case "error":
+            if (ringAudioRef.current) {
+              ringAudioRef.current.pause()
+            }
             ringSound.stop()
             setCallStatus("error")
             setStatusMessage("Call failed")
@@ -425,18 +469,41 @@ export default function CallPage() {
   }
 
   const handleEndCall = async () => {
+    console.log("Ending call...")
+    disconnectAttempted.current = true
+
+    // Stop sounds
+    if (ringAudioRef.current) {
+      ringAudioRef.current.pause()
+    }
     ringSound.stop()
     endSound.play()
-    await ultravoxClient.current.disconnect()
+
+    // Set UI state immediately
     setCallStatus("ended")
-    releaseWakeLock()
     setStatusMessage("Call ended")
     setAgentActivity("idle")
 
-    // Simulate call ending animation before navigating back
-    setTimeout(() => {
-      router.push("/")
-    }, 1500)
+    // Release wake lock
+    releaseWakeLock()
+
+    try {
+      // Disconnect from UltraVox
+      console.log("Disconnecting UltraVox client...")
+      await ultravoxClient.current.disconnect()
+      console.log("UltraVox client disconnected successfully")
+
+      // Simulate call ending animation before navigating back
+      setTimeout(() => {
+        router.push("/")
+      }, 1500)
+    } catch (error) {
+      console.error("Error disconnecting UltraVox client:", error)
+      // Force navigation even if disconnect fails
+      setTimeout(() => {
+        router.push("/")
+      }, 1500)
+    }
   }
 
   const toggleMute = () => {
@@ -606,6 +673,7 @@ export default function CallPage() {
                 opacity: callStatus === "ended" ? 0.7 : 1,
                 transition: "all 0.3s ease",
               }}
+              priority
             />
           </div>
 

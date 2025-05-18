@@ -54,7 +54,7 @@ export default function ProviderDetails({ params }: { params: { id: string } }) 
       setBookingStatus("loading")
       setBookingMessage("Initiating AI booking assistant...")
 
-      const response = await fetch("https://nitro1908.app.n8n.cloud/webhook/399dadb1-50c0-4ad1-9207-a4377598aa0b", {
+      const response = await fetch("https://nitrobally.app.n8n.cloud/webhook/399dadb1-50c0-4ad1-9207-a4377598aa0b", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

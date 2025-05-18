@@ -39,7 +39,13 @@ export class UltraVoxClient {
       this.mockModeReason = this.mockModeReason || "Mock mode explicitly requested"
     }
 
-    this.useMockMode(this.mockModeReason || "Default mock mode reason")
+    // If we're in mock mode, use mock mode
+    // Always call useMockMode, but only execute its logic if isMockMode is true
+    this.useMockMode(this.mockModeReason || "Default mock mode reason", this.isMockMode)
+
+    if (this.isMockMode) {
+      return
+    }
 
     try {
       this.setStatus("connecting")
@@ -61,6 +67,7 @@ export class UltraVoxClient {
       connectionError = error instanceof Error ? error : new Error(String(error))
       this.mockModeReason = `WebRTC connection error: ${connectionError.message}`
       this.isMockMode = true
+      this.useMockMode(this.mockModeReason, this.isMockMode)
     }
   }
 
@@ -111,7 +118,11 @@ export class UltraVoxClient {
     })
   }
 
-  private useMockMode(reason: string) {
+  private useMockMode(reason: string, shouldExecute: boolean) {
+    if (!shouldExecute) {
+      return
+    }
+
     this.isMockMode = true
     this.setStatus("connecting")
 
@@ -227,20 +238,41 @@ export class UltraVoxClient {
   }
 
   public async disconnect() {
+    console.log("UltraVoxClient: disconnect called")
+
     try {
       // Clear all mock timers
       this.clearMockTimers()
 
       // Properly leave the call using the session
-      if (!this.isMockMode && this.session) {
-        await this.session.leaveCall()
-      }
+      if (this.isConnected) {
+        if (!this.isMockMode && this.session) {
+          console.log("UltraVoxClient: attempting to leave call with real session")
+          try {
+            await this.session.leaveCall()
+            console.log("UltraVoxClient: leaveCall successful")
+          } catch (error) {
+            console.error("UltraVoxClient: Error in leaveCall:", error)
+          }
+        } else if (this.isMockMode) {
+          console.log("UltraVoxClient: mock mode, simulating disconnect")
+        }
 
+        this.isConnected = false
+        this.setStatus("disconnected")
+      } else {
+        console.log("UltraVoxClient: already disconnected")
+      }
+    } catch (error) {
+      console.error("UltraVoxClient: Error in disconnect:", error)
+      // Even if there's an error, we should still update the status
       this.isConnected = false
       this.setStatus("disconnected")
-    } catch (error) {
-      // Handle error silently
     }
+
+    // Clean up the session
+    this.session = null
+    return true
   }
 
   public onStatusChange(callback: (status: string) => void) {
@@ -279,7 +311,7 @@ export function getUltraVoxClient(): UltraVoxClient {
     // Server-side rendering - return a mock client
     return {
       connect: async () => {},
-      disconnect: () => {},
+      disconnect: async () => true,
       setMuted: () => {},
       onStatusChange: () => {},
       onTranscript: () => {},
